@@ -1,0 +1,127 @@
+dataset:
+  features_file: data/derived/mru_usd_features_all_week5.csv
+
+  label_files:
+    L1_Q: data/derived/mru_usd_labels_L1_Q_k5_q20_60_20.csv
+    L1_extreme: data/derived/mru_usd_labels_L1_k5_l075.csv
+    L2: data/derived/mru_usd_labels_L2_ma10_50_h5.csv
+
+  validation_splits_doc: docs/week04_methodology/validation_splits.md
+
+validation:
+  V1:
+    scheme: chronological_holdout
+    description: >
+      Single train/validation/test split. Exact date ranges are documented in
+      docs/week04_methodology/validation_splits.md.
+  V2:
+    scheme: walk_forward
+    description: >
+      Rolling-origin walk-forward cross-validation with multiple folds (F1–F4);
+      exact train/test windows are documented in docs/week04_methodology/validation_splits.md.
+
+labels:
+  L1_Q:
+    type: future_return_quantile
+    description: >
+      3-class future-return label over k=5 trading days.
+      Thresholds are empirical quantiles Q_0.2 and Q_0.8 of R_{t->t+5}
+      computed on V1-train only, then applied to the full series.
+    horizon_k: 5
+    q_low: 0.2                
+    q_high: 0.8
+    reference_split: V1_train
+    train_start: "2000-01-03"
+    train_end: "2015-12-31"
+    file: data/derived/mru_usd_labels_L1_Q_k5_q20_60_20.csv
+    label_column: y_L1_Q
+    future_return_column: R_t_to_tk
+    classes: [-1, 0, 1]
+
+  L1_extreme:
+    type: future_return_sigma
+    description: >
+      3-class future-return label over k=5 trading days with volatility-scaled
+      threshold θ = λ * σ_train * sqrt(5), with λ = 0.75. σ_train is computed
+      from daily log returns on V1-train only.
+    horizon_k: 5
+    lambda: 0.75
+    sigma_reference: V1_train
+    train_start: "2000-01-03"
+    train_end: "2015-12-31"
+    file: data/derived/mru_usd_labels_L1_k5_l075.csv
+    label_column: y_L1
+    future_return_column: R_t_to_tk
+    classes: [-1, 0, 1]
+
+  L2:
+    type: ma_trend_heuristic
+    description: >
+      3-class trend label based on MA_fast(10), MA_slow(50), and a 5-day
+      slow-MA slope. Up if MA_fast > MA_slow and slope > 0; down if
+      MA_fast < MA_slow and slope < 0; neutral otherwise.
+    ma_fast: 10
+    ma_slow: 50
+    slope_h: 5
+    file: data/derived/mru_usd_labels_L2_ma10_50_h5.csv
+    label_column: y_L2
+    classes: [-1, 0, 1]
+    notes:
+      - "L2 is defined only where at least 50 + 5 days of history exist."
+      - "Forbid using features that replicate MA(10)/MA(50)/slope rule in L2 experiments (anti-circularity)."
+
+features:
+  source_file: data/derived/mru_usd_features_all_week5.csv
+
+  F_CORE:
+    description: >
+      Main 5-dimensional feature set: short and medium horizon momentum
+      plus short and medium horizon volatility, all computed using data
+      up to t-1 (no look-ahead).
+    columns:
+      - f_r_lag1        
+      - f_past_ret_5    
+      - f_past_ret_20   
+      - f_vol_10        
+      - f_vol_30        
+
+  F_MIN:
+    description: >
+      Minimal 3-dimensional feature set: very short horizon momentum
+      and short horizon volatility only. Used for optional robustness
+      experiments, not for core E1–E8.
+    columns:
+      - f_r_lag1        
+      - f_past_ret_5    
+      - f_vol_10        
+
+  optional:
+    columns:
+      - f_high_vol      
+      - f_ma_50         
+      - f_dist_50       
+    descriptions:
+      f_high_vol: "High-volatility indicator: short-term volatility above a percentile threshold computed on V1-train."
+      f_ma_50: "50-day mean of log price up to t-1."
+      f_dist_50: "Distance from log price to its 50-day mean (ℓ_{t-1} - μ^{(50)}_{t-1})."
+
+  anti_circularity:
+    notes:
+      - "All features at time t must use only information available up to t-1."
+      - "Do NOT include features that directly re-use the L2 rule (MA(10) vs MA(50) crossover plus slow-MA slope) in L2-based experiments."
+      - "If a candidate feature is a trivial algebraic variant of the L2 rule, mark it as forbidden in modeling code."
+
+  forbidden_for_L2:
+    description: >
+      Features that would directly replicate the L2 rule and are
+      therefore forbidden in main L2 experiments (ok only for
+      exploratory analysis if explicitly documented).
+    columns:
+      - ma10_logp          
+      - ma50_logp          
+      - ma10_minus_ma50    
+      - ma50_slope_5d      
+
+defaults:
+  main_label: "L1_Q"
+  main_feature_set: "F_CORE"
