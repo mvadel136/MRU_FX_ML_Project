@@ -1,3 +1,9 @@
+  ▎ Note — June 2026
+  ▎
+  ▎ This repository reflects the codebase as submitted during my Master's thesis research. The thesis has since been successfully defended. The notebooks in their current state are experimental and not fully runnable
+  ▎ end-to-end; some code is incomplete or environment-dependent. A cleaned, reproducible version of the codebase along with the final thesis PDF will be uploaded in a future update. All results, figures, and metrics
+  ▎ presented here are valid and correspond to the defended work.
+
 # Market Regime Classification for MRU/USD with Machine Learning
 
 ## Overview
